@@ -1,8 +1,10 @@
 # Local infrastructure for CodeArena.
 #
-# `docker compose up -d postgres redis` brings up just the datastores, which is
-# all you need for `npm run dev`. The api / worker / web services are provided
-# for a full containerised run and are documented in the README.
+#   docker compose up -d postgres redis      -> just the datastores (for `npm run dev`)
+#   docker compose --profile full up --build  -> the whole stack in containers
+#
+# The api / worker / web services live behind the `full` profile so the plain
+# `up` stays lightweight.
 
 services:
   postgres:
@@ -31,6 +33,77 @@ services:
       interval: 3s
       timeout: 3s
       retries: 10
+
+  # --- full stack (profile: full) -----------------------------------------
+
+  api:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://codearena:codearena@postgres:5432/codearena?schema=public
+      REDIS_URL: redis://redis:6379
+      API_PORT: 4000
+      WEB_ORIGIN: http://localhost:3100
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  executor:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    command: ["npm", "run", "start:executor", "-w", "@codearena/worker"]
+    environment:
+      DATABASE_URL: postgresql://codearena:codearena@postgres:5432/codearena?schema=public
+      REDIS_URL: redis://redis:6379
+      SANDBOX_IMAGE: codearena-sandbox-python:latest
+      # mkdtemp path must be visible to the host dockerd that spawns sandboxes
+      SANDBOX_TMP_DIR: /tmp/codearena-sandboxes
+    volumes:
+      # The executor spawns sibling sandbox containers via the host daemon.
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/codearena-sandboxes:/tmp/codearena-sandboxes
+    depends_on:
+      api:
+        condition: service_started
+
+  review:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    command: ["npm", "run", "start:review", "-w", "@codearena/worker"]
+    environment:
+      DATABASE_URL: postgresql://codearena:codearena@postgres:5432/codearena?schema=public
+      REDIS_URL: redis://redis:6379
+      LLM_PROVIDER: ${LLM_PROVIDER:-stub}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-5}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o}
+    depends_on:
+      api:
+        condition: service_started
+
+  web:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    environment:
+      WEB_PORT: 3100
+    ports:
+      - "3100:3100"
+    depends_on:
+      api:
+        condition: service_started
 
 volumes:
   codearena-pgdata:
