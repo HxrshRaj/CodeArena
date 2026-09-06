@@ -95,7 +95,10 @@ function toTestResultDto(r: TestResult, caseByIndex: Map<number, TestCase>): Tes
   };
 }
 
-type SubmissionWithChallenge = Submission & { challenge: Challenge };
+type SubmissionWithChallenge = Submission & {
+  challenge: Challenge;
+  review?: Review | null;
+};
 
 export function toSubmissionSummary(s: SubmissionWithChallenge): SubmissionSummary {
   return {
@@ -111,6 +114,8 @@ export function toSubmissionSummary(s: SubmissionWithChallenge): SubmissionSumma
     runtimeMs: s.runtimeMs,
     createdAt: s.createdAt.toISOString(),
     finishedAt: s.finishedAt ? s.finishedAt.toISOString() : null,
+    // Advisory, kept as a distinct field. `null` review row => still pending.
+    reviewStatus: s.review?.status ?? "pending",
   };
 }
 

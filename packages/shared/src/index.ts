@@ -119,6 +119,11 @@ export interface SubmissionSummary {
   runtimeMs: number | null;
   createdAt: string;
   finishedAt: string | null;
+  /**
+   * Advisory only. Surfaced as its own column so a recruiter list can show
+   * "AI review ready/failed" without ever mixing it into the score.
+   */
+  reviewStatus: ReviewStatus;
 }
 
 export interface SubmissionDetail extends SubmissionSummary {

@@ -62,7 +62,7 @@ export async function submissionRoutes(app: FastifyInstance): Promise<void> {
       const limit = Math.min(Number(req.query.limit ?? 50) || 50, 200);
       const rows = await prisma.submission.findMany({
         where: req.query.challengeId ? { challengeId: req.query.challengeId } : undefined,
-        include: { challenge: true },
+        include: { challenge: true, review: true },
         orderBy: { createdAt: "desc" },
         take: limit,
       });
