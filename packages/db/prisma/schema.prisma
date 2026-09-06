@@ -1,0 +1,140 @@
+// CodeArena data model.
+//
+// Deterministic vs advisory separation lives here structurally:
+//   Submission + TestResult  -> deterministic execution outcome. Scoring.
+//   Review                   -> LLM output. A sibling row, joined only by
+//                               submissionId, with no column that feeds a
+//                               score or a pass/fail.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Language {
+  python
+}
+
+enum Difficulty {
+  easy
+  medium
+  hard
+}
+
+enum SubmissionStatus {
+  queued
+  running
+  passed
+  failed
+  error
+}
+
+enum TestResultStatus {
+  pass
+  fail
+  error
+  timeout
+}
+
+enum ReviewStatus {
+  pending
+  ready
+  failed
+}
+
+model Challenge {
+  id           String     @id @default(cuid())
+  slug         String     @unique
+  title        String
+  promptMd     String
+  language     Language   @default(python)
+  difficulty   Difficulty @default(easy)
+  starterCode  String
+  timeLimitMs  Int        @default(5000)
+  memoryMb     Int        @default(256)
+  createdAt    DateTime   @default(now())
+
+  testCases    TestCase[]
+  submissions  Submission[]
+}
+
+model TestCase {
+  id             String    @id @default(cuid())
+  challenge      Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  challengeId    String
+  index          Int
+  name           String
+  stdin          String    @default("")
+  expectedStdout String
+  hidden         Boolean   @default(false)
+  weight         Int       @default(1)
+
+  results        TestResult[]
+
+  @@unique([challengeId, index])
+}
+
+/// Deterministic execution outcome. Nothing here is influenced by the LLM.
+model Submission {
+  id            String           @id @default(cuid())
+  challenge     Challenge        @relation(fields: [challengeId], references: [id])
+  challengeId   String
+  candidateName String
+  code          String
+  status        SubmissionStatus @default(queued)
+  /// 0-100, weighted by test-case weight. Deterministic.
+  scorePct      Int              @default(0)
+  testsPassed   Int              @default(0)
+  testsTotal    Int              @default(0)
+  runtimeMs     Int?
+  createdAt     DateTime         @default(now())
+  startedAt     DateTime?
+  finishedAt    DateTime?
+
+  testResults   TestResult[]
+  review        Review?
+
+  @@index([createdAt])
+  @@index([challengeId])
+}
+
+/// Deterministic per-test-case result.
+model TestResult {
+  id            String           @id @default(cuid())
+  submission    Submission       @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  submissionId  String
+  testCase      TestCase         @relation(fields: [testCaseId], references: [id])
+  testCaseId    String
+  index         Int
+  status        TestResultStatus
+  timeMs        Int              @default(0)
+  stdoutExcerpt String           @default("")
+  expectedExcerpt String         @default("")
+  message       String           @default("")
+  createdAt     DateTime         @default(now())
+
+  @@unique([submissionId, index])
+}
+
+/// Advisory LLM review. Separate table on purpose. One-to-one with a
+/// submission but entirely optional and never part of the score.
+model Review {
+  id           String       @id @default(cuid())
+  submission   Submission   @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  submissionId String       @unique
+  status       ReviewStatus @default(pending)
+  provider     String?
+  model        String?
+  summary      String?
+  /// ReviewFinding[] as JSON.
+  findings     Json         @default("[]")
+  latencyMs    Int?
+  error        String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
