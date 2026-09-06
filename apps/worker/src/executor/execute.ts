@@ -201,6 +201,11 @@ async function clearRunState(submissionId: string): Promise<void> {
     .exec();
 }
 
+/**
+ * Hand off to the separate review worker. Only the queue push and a pending
+ * row live here; the review worker owns all review lifecycle events and is
+ * the only thing that writes review content.
+ */
 async function enqueueReview(submissionId: string): Promise<void> {
   await prisma.review.upsert({
     where: { submissionId },
@@ -208,5 +213,4 @@ async function enqueueReview(submissionId: string): Promise<void> {
     update: { status: "pending", error: null },
   });
   await redis.lpush(redisKeys.reviewQueue, submissionId);
-  await publishEvent(submissionId, { type: "review_status", submissionId, status: "pending" });
 }
