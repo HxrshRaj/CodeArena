@@ -222,11 +222,23 @@ export const redisKeys = {
   execRunning: "exec:running",
   /** Hash per submission: { status, queuedAt, startedAt }. */
   execState: (submissionId: string): string => `exec:state:${submissionId}`,
-  /** Cache-aside: serialized ChallengeDetail. */
+  /**
+   * Cache-aside: public ChallengeDetail (hidden test cases carry no data).
+   * This is what the API serves to the browser.
+   */
   challengeCache: (id: string): string => `cache:challenge:${id}`,
+  /**
+   * Cache-aside: full challenge incl. every test case's stdin/expected.
+   * Worker-only. Kept on a separate key so the public projection can never
+   * accidentally leak hidden expected output.
+   */
+  challengeExecCache: (id: string): string => `cache:challenge:exec:${id}`,
   /** Cache-aside: serialized ChallengeSummary[] index. */
   challengeIndexCache: "cache:challenges:index",
 } as const;
+
+/** TTL for cached challenge data. */
+export const CHALLENGE_CACHE_TTL_SECONDS = 3600;
 
 // --- In-container runner protocol (executor worker <- runner.py) ------------
 

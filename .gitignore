@@ -27,3 +27,5 @@ Thumbs.db
 
 # runtime scratch
 apps/worker/.sandbox-tmp/
+_*.mjs
+_scratch/
