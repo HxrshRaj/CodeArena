@@ -51,6 +51,13 @@ export function attachWebSocket(server: Server): void {
   // submissionId -> interested sockets
   const subscribers = new Map<string, Set<WebSocket>>();
 
+  const dropInterest = (submissionId: string, ws: WebSocket): void => {
+    const set = subscribers.get(submissionId);
+    if (!set) return;
+    set.delete(ws);
+    if (set.size === 0) subscribers.delete(submissionId);
+  };
+
   const gatewaySub = createSubscriber();
   void gatewaySub.psubscribe(CHANNEL_PATTERN).then(
     () => log.info("gateway pattern-subscribed", { pattern: CHANNEL_PATTERN }),
@@ -126,14 +133,14 @@ export function attachWebSocket(server: Server): void {
 
       if (msg.type === "unsubscribe") {
         if (!state.interest.delete(msg.submissionId)) return;
-        subscribers.get(msg.submissionId)?.delete(ws);
+        dropInterest(msg.submissionId, ws);
       }
     });
 
     const cleanup = (): void => {
       const state = sockets.get(ws);
       if (state) {
-        for (const id of state.interest) subscribers.get(id)?.delete(ws);
+        for (const id of state.interest) dropInterest(id, ws);
       }
       sockets.delete(ws);
     };

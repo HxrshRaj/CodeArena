@@ -4,7 +4,10 @@
  * real hit-rate win, not decoration.
  *
  *   read:  GET key -> hit? parse & return : load from Postgres, SET EX, return
- *   write: not needed at runtime; `npm run db:seed` calls invalidateAll()
+ *
+ * There is no runtime write path for challenges, so invalidation is just the
+ * 1h TTL. After re-running the seed in dev, call `invalidateChallengeCaches()`
+ * (exposed via `npm run cache:flush -w @codearena/api`) or let the TTL lapse.
  */
 import {
   CHALLENGE_CACHE_TTL_SECONDS,
@@ -60,4 +63,14 @@ export async function resolveChallengeId(idOrSlug: string): Promise<string | nul
   const index = await getChallengeIndex();
   const match = index.find((c) => c.id === idOrSlug || c.slug === idOrSlug);
   return match?.id ?? null;
+}
+
+/** Drop every cached challenge entry. For use after re-seeding in dev. */
+export async function invalidateChallengeCaches(): Promise<number> {
+  const ids = await prisma.challenge.findMany({ select: { id: true } });
+  const keys = [
+    redisKeys.challengeIndexCache,
+    ...ids.flatMap((c) => [redisKeys.challengeCache(c.id), redisKeys.challengeExecCache(c.id)]),
+  ];
+  return redis.del(...keys);
 }
