@@ -1,0 +1,31 @@
+{
+  "name": "codearena",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Mini technical assessment platform: in-browser editor, sandboxed execution, real-time results, and a separate LLM code-review layer.",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "infra:up": "docker compose up -d postgres redis",
+    "infra:down": "docker compose down",
+    "db:generate": "npm run generate -w @codearena/db",
+    "db:migrate": "npm run migrate -w @codearena/db",
+    "db:seed": "npm run seed -w @codearena/db",
+    "sandbox:build": "docker build -t codearena-sandbox-python:latest ./sandbox",
+    "dev:api": "npm run dev -w @codearena/api",
+    "dev:executor": "npm run dev:executor -w @codearena/worker",
+    "dev:review": "npm run dev:review -w @codearena/worker",
+    "dev:web": "npm run dev -w @codearena/web",
+    "dev": "concurrently -n api,exec,review,web -c blue,magenta,yellow,green \"npm:dev:api\" \"npm:dev:executor\" \"npm:dev:review\" \"npm:dev:web\"",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "typescript": "^5.6.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
