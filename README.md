@@ -181,19 +181,20 @@ worker, and the Next.js app (`:3100`). Open **http://localhost:3100**.
 
 ### The LLM layer
 
-Set the provider in `.env`:
+`.env` defaults to `LLM_PROVIDER="stub"` so reviews work with zero config:
+the stub runs the entire review path — queue, `Review` table, WS events, UI
+panel — with a canned response and **no API call**. For real reviews, add a
+key and switch provider:
 
 ```ini
-LLM_PROVIDER="anthropic"      # or "openai" or "stub"
+LLM_PROVIDER="anthropic"      # or "openai"
 ANTHROPIC_API_KEY="sk-ant-..."
 ANTHROPIC_MODEL="claude-sonnet-5"
 ```
 
-`stub` runs the entire review path — queue, `Review` table, WS events, UI
-panel — with a canned response and **no API call**, so the rest of the system
-is fully demonstrable without a key. If `LLM_PROVIDER` is `anthropic`/`openai`
-but the key is missing, the review is marked `failed` (with a clear message)
-and — the point of the whole design — the deterministic score is untouched.
+If `LLM_PROVIDER` is `anthropic`/`openai` but the key is missing, the review
+is marked `failed` (with a clear message) and — the point of the whole
+design — the deterministic score is untouched.
 
 ### Full containerised run (optional)
 
