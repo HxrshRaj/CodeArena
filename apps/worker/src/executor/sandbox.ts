@@ -24,7 +24,7 @@
  */
 import { execa, type ExecaError, type ResultPromise } from "execa";
 import { randomUUID } from "node:crypto";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
@@ -85,6 +85,14 @@ export async function runSandbox(
 
   await writeFile(join(workdir, "submission.py"), job.code, "utf8");
   await writeFile(join(workdir, "job.json"), JSON.stringify(jobFile), "utf8");
+
+  // The sandbox container runs as `nobody` (uid 65534) and mounts this dir
+  // read-only. mkdtemp creates it 0700/owner-only, so on a real Linux host
+  // (e.g. the fully containerised stack) nobody can't read it — widen to
+  // world-readable. The contents are just the candidate's own code + inputs.
+  await chmod(workdir, 0o755);
+  await chmod(join(workdir, "submission.py"), 0o644);
+  await chmod(join(workdir, "job.json"), 0o644);
 
   // Each case may burn its full per-case timeout; add fixed overhead headroom.
   const wallBudgetMs = job.timeLimitMs * Math.max(1, job.cases.length) + 15_000;

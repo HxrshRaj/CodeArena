@@ -220,18 +220,30 @@ async function main(): Promise<void> {
       },
     });
 
-    // Replace test cases wholesale so edits to this file are authoritative.
-    await prisma.testCase.deleteMany({ where: { challengeId: challenge.id } });
-    await prisma.testCase.createMany({
-      data: c.cases.map((tc, index) => ({
-        challengeId: challenge.id,
-        index,
+    // Upsert each case by (challengeId, index) so this stays re-runnable even
+    // after submissions exist (a wholesale delete would trip the TestResult ->
+    // TestCase foreign key).
+    for (const [index, tc] of c.cases.entries()) {
+      const data = {
         name: tc.name,
         stdin: tc.stdin,
         expectedStdout: tc.expectedStdout,
         hidden: tc.hidden ?? false,
         weight: tc.weight ?? 1,
-      })),
+      };
+      await prisma.testCase.upsert({
+        where: { challengeId_index: { challengeId: challenge.id, index } },
+        create: { challengeId: challenge.id, index, ...data },
+        update: data,
+      });
+    }
+    // Drop only now-removed trailing cases that nothing references yet.
+    await prisma.testCase.deleteMany({
+      where: {
+        challengeId: challenge.id,
+        index: { gte: c.cases.length },
+        results: { none: {} },
+      },
     });
 
     console.log(`seeded ${c.slug} (${c.cases.length} cases)`);
