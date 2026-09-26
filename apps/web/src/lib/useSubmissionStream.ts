@@ -21,9 +21,11 @@ export interface StreamState {
   review: ReviewDto | null;
 }
 
-type Action = { kind: "conn"; value: StreamState["connection"] } | { kind: "msg"; msg: ServerMessage };
+export type StreamAction =
+  | { kind: "conn"; value: StreamState["connection"] }
+  | { kind: "msg"; msg: ServerMessage };
 
-const initial: StreamState = {
+export const initialStreamState: StreamState = {
   connection: "connecting",
   detail: null,
   status: null,
@@ -31,7 +33,12 @@ const initial: StreamState = {
   review: null,
 };
 
-function reducer(state: StreamState, action: Action): StreamState {
+/**
+ * Pure reducer: exported (in addition to being wired into the hook below) so
+ * the event-application logic — the part with actual branching to get wrong —
+ * can be unit tested without a WebSocket or a DOM.
+ */
+export function submissionStreamReducer(state: StreamState, action: StreamAction): StreamState {
   if (action.kind === "conn") return { ...state, connection: action.value };
 
   const msg = action.msg;
@@ -90,7 +97,7 @@ function emptyReview(): ReviewDto {
  * event stream into typed state. Reconnects with backoff and re-subscribes.
  */
 export function useSubmissionStream(submissionId: string | null): StreamState {
-  const [state, dispatch] = useReducer(reducer, initial);
+  const [state, dispatch] = useReducer(submissionStreamReducer, initialStreamState);
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {

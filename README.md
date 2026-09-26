@@ -211,6 +211,33 @@ the `api` service's entrypoint. App on **http://localhost:3100**.
 
 ---
 
+## Tests
+
+Three separate test runners, each used for what it's actually good at rather
+than picked for uniformity:
+
+| Suite | Where | What it covers | Why this framework here |
+|---|---|---|---|
+| **Jest** + React Testing Library | `apps/web/src/**/*.test.{ts,tsx}` | The `Editor` component's real behavior (default language/readOnly, prop forwarding, the `onChange` `undefined`→`""` coalescing) and the `submissionStreamReducer` pure function that turns the WebSocket event stream into UI state | Jest is the standard pairing with React Testing Library and with Next.js (`next/jest` wires up the SWC transform, `next.config.mjs`, and `.env` for free) |
+| **Mocha + Chai** | `apps/worker/test/*.mocha.spec.ts` | `scoreResults` — the deterministic, weighted scoring function the executor uses to turn test-case outcomes into a score. Includes edge cases: zero test cases, weighted partial credit, timeout/error treated as non-pass | A separate, standalone Node test runner for backend business logic that has nothing to do with React — Mocha's own CLI + Chai's `expect` assertions, deliberately decoupled from Jest |
+| **Jasmine** | `apps/worker/spec/*.spec.ts` | `normalizeFindings` — the function that sanitizes an LLM review's findings (severity fallback, category/comment truncation, line-number filtering, a 12-finding cap) before they're persisted and shown in the UI | A small, intentionally-scoped demonstration of Jasmine's own batteries-included BDD syntax (`describe`/`it`, its own `expect(...).toBe(...)` matchers, no Chai involved) — the project doesn't otherwise use Jasmine, so this stays minimal on purpose |
+
+Run them:
+
+```bash
+npm run test:web             # Jest — apps/web
+npm run test:worker:mocha    # Mocha + Chai — apps/worker
+npm run test:worker:jasmine  # Jasmine — apps/worker
+npm run test                 # all three, in sequence
+```
+
+None of the three needs Docker, Postgres, or Redis running — they test pure
+functions and a mocked-Monaco component in isolation. `npm run db:generate`
+(part of first-time setup above) is a prerequisite, since `apps/api` and
+`apps/worker` import types from the generated Prisma client.
+
+---
+
 ## Project layout
 
 ```
@@ -224,7 +251,10 @@ apps/
     executor/ BRPOP exec:queue → sandbox → stream test_result → score.
     review/   BRPOP review:queue → LLM → write Review row only.
     cli/      run-once: exercise the sandbox with no API/queue/DB writes.
+    test/     Mocha + Chai spec for scoring.ts.
+    spec/     Jasmine spec for the review-findings normalizer.
   web/        Next.js App Router. Editor page + recruiter dashboard.
+              Jest + RTL tests live next to the source (*.test.ts(x)).
 sandbox/      The execution image + runner.py.
 ```
 

@@ -17,7 +17,12 @@
     "plugins": [{ "name": "next" }],
     "paths": {
       "@/*": ["./src/*"]
-    }
+    },
+    // npm workspaces hoist all devDependencies into one shared node_modules,
+    // so without this, apps/worker's @types/jasmine and @types/mocha (which
+    // declare their own conflicting global `describe`/`it`/`expect`) would
+    // otherwise leak into this workspace's compile too.
+    "types": ["jest", "node", "react", "react-dom"]
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]

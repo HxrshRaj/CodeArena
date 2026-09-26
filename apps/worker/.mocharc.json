@@ -1,0 +1,6 @@
+{
+  "spec": "test/**/*.mocha.spec.ts",
+  "node-option": ["import=tsx"],
+  "extension": ["ts"],
+  "timeout": 5000
+}

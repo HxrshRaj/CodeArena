@@ -19,7 +19,11 @@
     "dev:review": "npm run dev:review -w @codearena/worker",
     "dev:web": "npm run dev -w @codearena/web",
     "dev": "concurrently -n api,exec,review,web -c blue,magenta,yellow,green \"npm:dev:api\" \"npm:dev:executor\" \"npm:dev:review\" \"npm:dev:web\"",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test:web": "npm run test -w @codearena/web",
+    "test:worker:mocha": "npm run test:mocha -w @codearena/worker",
+    "test:worker:jasmine": "npm run test:jasmine -w @codearena/worker",
+    "test": "npm run test:web && npm run test:worker:mocha && npm run test:worker:jasmine"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",
